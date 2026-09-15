@@ -27,29 +27,38 @@ DeepSeek Harness 用量统计插件 — 带图表的用量统计面板。
 插件由两部分组成：宿主端 Cordis 插件（`lib/index.js`，提供统计 API）和客户端面板
 （`lib/client.js`，挂在“设置 → 插件”页面的用量标签页）。
 
-桌面端从用户目录的 web profile 加载插件清单（`%USERPROFILE%\.dsh\profiles\web`），
-**不要**往应用安装目录（`resources\app\node_modules`）里拷贝——那里的 cordis.patch.yml
-不会被应用，`dsh.client` 声明也不会被扫描。
+### 方式一：从 Release 安装（推荐）
+
+到 [Releases 页面](https://github.com/wusudewu/dsh-usage-stats/releases) 下载
+`dsh-usage-stats-<版本>.tgz`，然后：
 
 ```powershell
-# 1) 把插件放进 profile 的 node_modules
-$profile = Join-Path $env:USERPROFILE '.dsh\profiles\web'
-$dest    = Join-Path $profile 'node_modules\dsh-usage-stats'
-New-Item -ItemType Directory -Force (Split-Path $dest) | Out-Null
-Copy-Item -Recurse .\dsh-usage-stats $dest
-
-# 2) 在 profile 的 cordis.patch.yml 中新增一行（没有则新建该文件）：
-#    - id: usage-stats
-#      name: dsh-usage-stats
-
-# 3) 重启 DeepSeek Harness Desktop，在“设置 → 插件”里应出现“用量统计”标签页
+dsh plugin add C:\path\to\dsh-usage-stats-0.1.4.tgz
 ```
 
-若机器上有 `dsh` CLI，也可走标准安装流程（本地目录可先 `pnpm pack` 打包成 tgz）：
+`dsh` CLI 是随 Desktop Beta 一起安装的（若 PATH 里没有，可在 Desktop 的
+host-commands 目录找到 `dsh.cmd`）。命令会装入**当前激活的 profile**
+（`%APPDATA%\DSH Desktop Beta\profile-selection\state.json` 里的 `active`，
+Desktop 默认为 `desktop`）。装完**完全重启** Desktop，在“设置 → 插件”里出现“用量统计”标签页即成功。
 
-```bash
-dsh plugin --profile web add dsh-usage-stats
+> 更新到新版本：直接对新版本的 tgz 再执行一次 `dsh plugin add` 即可，**不要**先删旧 tgz——
+> profile 的依赖清单以 `file:` 引用该 tgz，删除会让清单悬空、导致下一次安装报错。
+
+### 方式二：源码本地打包
+
+```powershell
+cd dsh-usage-stats          # 若目录名带 -main 后缀请按实际名改
+npm pack                    # 生成 dsh-usage-stats-<版本>.tgz
+dsh plugin add .\dsh-usage-stats-<版本>.tgz
 ```
+
+### 方式三：手工放入 profile（仅在无 CLI 时）
+
+插件清单从**激活 profile** 目录读取（不是应用安装目录）。往
+`%USERPROFILE%\.dsh\profiles\<激活profile>\node_modules\dsh-usage-stats` 拷入，并在该
+profile 的 `package.json` 的 `dsh.profile.bundles` 数组里加入 `"dsh-usage-stats"`，再重启。
+**不要**往应用安装目录（`resources\app\node_modules`）拷贝——那里的 `cordis.patch.yml` 不会被
+应用，`dsh.client` 声明也不会被扫描。
 
 > 注意：插件要求宿主为 0.1.0-rc.8 及以上（见 peerDependencies）；统计 API 直接挂在
 > webServer 上、无鉴权，请勿将 `host` 配为 `0.0.0.0` 暴露到不受信任的网络。
@@ -64,8 +73,11 @@ dsh plugin --profile web add dsh-usage-stats
 ## 开发
 
 ```bash
-pnpm test   # 运行单元测试（Node 内置 test runner，无需额外依赖）
+npm test   # 运行单元测试（Node 内置 test runner，无需额外依赖；亦可用 pnpm test）
 ```
+
+说明：`lib/client.js` 是手工维护的客户端 bundle（既是源也是产物，改动直接编辑它）；
+`lib/fold.js` 为纯函数折叠层，`store/backfill` 为增量账本与回填。
 
 ## 许可
 
