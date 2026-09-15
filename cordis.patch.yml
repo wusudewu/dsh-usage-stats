@@ -1,0 +1,5 @@
+# dsh-usage-stats bundle layer: applied when the package is installed.
+# Registers the usage-stats plugin into the cordis composition.
+- insert:
+    - id: usage-stats
+      name: dsh-usage-stats
